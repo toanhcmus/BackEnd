@@ -47,7 +47,7 @@ router.post('/subscribe', async (req, res) => {
   }
 });
 
-router.get('/confirm/:id', async (req, res) => {
+router.get('/confirm/:confirmationCode', async (req, res) => {
   try {
     const user = await User.findOne({ confirmationCode: req.params.confirmationCode });
     if (!user) {

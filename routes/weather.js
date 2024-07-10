@@ -3,34 +3,6 @@ const axios = require('axios');
 const WeatherHistory = require('../models/WeatherHistory');
 const router = express.Router();
 
-// router.get('/current/:city', async (req, res) => {
-//   const city = req.params.city;
-//   console.log(city);
-//   try {
-//     const response = await axios.get(`http://api.weatherapi.com/v1/current.json?key=${process.env.WEATHER_API_KEY}&q=${city}`);
-//     const data = response.data;
-
-//     const weatherInfo = {
-//       city: data.location.name,
-//       country: data.location.country,
-//       date: data.location.localtime.split(' ')[0],
-//       temp: data.current.temp_c,
-//       wind: data.current.wind_kph,
-//       humidity: data.current.humidity,
-//       condition: data.current.condition.text,
-//       icon: data.current.condition.icon,
-//     };
-
-//     // Save to history
-//     const history = new WeatherHistory({ city, data: weatherInfo });
-//     await history.save();
-
-//     res.json(weatherInfo);
-//   } catch (error) {
-//     res.status(500).json({ message: 'Error fetching weather data' });
-//   }
-// });
-
 router.get('/forecast/:city', async (req, res) => {
   const city = req.params.city;
   console.log(city);
@@ -50,9 +22,10 @@ router.get('/forecast/:city', async (req, res) => {
       img: current.day.condition.icon,
     };
 
-    console.log(currentWeather);
+    // console.log(currentWeather);
+    const today = data.forecast.forecastday[0].date;
 
-    const forecast = data.forecast.forecastday.map(day => ({
+    const forecast = data.forecast.forecastday.filter(day => today !== day.date).map(day => ({
       date: day.date,
       temp: day.day.avgtemp_c,
       wind: day.day.maxwind_kph,
@@ -66,16 +39,35 @@ router.get('/forecast/:city', async (req, res) => {
       currentWeather: currentWeather
     }
 
-    console.log(dataRes);
+    // console.log(dataRes);
 
     // Save to history
-    const history = new WeatherHistory({ city, data: currentWeather });
-    await history.save();
+    const existingHistory = await WeatherHistory.findOne({ city });
+    if (!existingHistory) {
+      const history = new WeatherHistory({ city, data: currentWeather });
+      await history.save();
+    } else {
+      const updateHistory = await WeatherHistory.findOneAndUpdate(
+        { city },
+        { data: currentWeather },
+        { new: true, upsert: true }
+      );
+    }
 
     res.json(dataRes);
 
   } catch (error) {
     res.status(500).json({ message: 'Error fetching forecast data' });
+  }
+});
+
+router.get('/search-history', async (req, res) => {
+  try {
+    const history = await WeatherHistory.find();
+    res.json(history);
+    // console.log(history);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching search history' });
   }
 });
 
